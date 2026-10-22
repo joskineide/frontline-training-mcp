@@ -12,6 +12,7 @@ wheels/
 # Local working notes, not part of the project.
 CLAUDE.md
 PROGRESS.md
+notes/
 
 # Secrets: never commit. Copy .env.example instead.
 .env
