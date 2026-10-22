@@ -1,0 +1,34 @@
+[project]
+name = "frontline-training-mcp"
+version = "0.1.0"
+description = "Production-shaped, multi-tenant MCP server for a fictional frontline-workforce training platform."
+readme = "README.md"
+authors = [
+    { name = "joskineide", email = "joskineide@hotmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "mcp>=2.3,<3",
+]
+
+[project.scripts]
+frontline-training-mcp = "frontline_training_mcp:main"
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.17.1",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
