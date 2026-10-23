@@ -1,0 +1,56 @@
+:root {
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --text: #1d2330;
+  --muted: #5d6677;
+  --line: #e2e5ea;
+  --accent: #2f5bd3;
+  --late: #b42318;
+  --done: #157f3b;
+  --warn-bg: #fff4d6;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171c;
+    --panel: #1d2128;
+    --text: #e6e9ee;
+    --muted: #a1a9b6;
+    --line: #2d333d;
+    --accent: #7c9cff;
+    --late: #ff8a80;
+    --done: #6fd38f;
+    --warn-bg: #3a2f12;
+  }
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.45; }
+.banner { margin: 0; padding: 0.6rem 1rem; background: var(--warn-bg); font-size: 0.9rem; }
+header {
+  display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between;
+  padding: 1rem; max-width: 72rem; margin: 0 auto;
+}
+h1 { font-size: 1.3rem; margin: 0; }
+h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
+h3 { font-size: 0.98rem; margin: 0 0 0.25rem; }
+.controls { display: flex; gap: 0.5rem; align-items: center; }
+select, button { font: inherit; padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid var(--line); }
+button { background: var(--accent); color: #fff; border: none; cursor: pointer; }
+main {
+  display: grid; gap: 1rem; padding: 0 1rem 2rem; max-width: 72rem; margin: 0 auto;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+}
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
+th, td { text-align: left; padding: 0.4rem 0.3rem; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 600; }
+.cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.cards li { border: 1px solid var(--line); border-radius: 8px; padding: 0.7rem; }
+.cards p { margin: 0 0 0.35rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.meta, .hint, .empty { color: var(--muted); font-size: 0.85rem; }
+.badge { font-size: 0.8rem; font-weight: 600; }
+.badge.late { color: var(--late); }
+.badge.done { color: var(--done); }
+.error { max-width: 72rem; margin: 0 auto 1rem; padding: 0.6rem 1rem; color: var(--late); }

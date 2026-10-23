@@ -11,11 +11,14 @@ dependencies = [
     "mcp>=2.3,<3",
     "psycopg[binary]>=3.3,<4",
     "sqlalchemy>=2.1.4,<2.2",
+    "starlette>=1.7,<2",
+    "uvicorn>=0.54,<1",
 ]
 
 [project.scripts]
 frontline-training-mcp = "frontline_training_mcp:main"
 ftm-migrate = "frontline_training_mcp.migrate:main"
+ftm-standin = "frontline_training_mcp.standin.app:main"
 
 [build-system]
 requires = ["uv_build>=0.13.5,<0.14.0"]

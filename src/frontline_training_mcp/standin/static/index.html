@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Training platform (stand-in)</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <p class="banner">
+    <strong>Platform stand-in</strong> · AI-generated UI · development only.
+    Not part of the MCP server: it shows what each user sees, and it is where a person
+    publishes the drafts an assistant prepared.
+  </p>
+  <header>
+    <h1 id="who">Training platform</h1>
+    <div class="controls">
+      <label>View as <select id="viewer"></select></label>
+      <button id="refresh" type="button">Refresh</button>
+    </div>
+  </header>
+  <p id="error" class="error" role="alert" hidden></p>
+  <main>
+    <section>
+      <h2>My training</h2>
+      <table>
+        <thead><tr><th>Module</th><th>Due</th><th>Status</th></tr></thead>
+        <tbody id="assignments"></tbody>
+      </table>
+    </section>
+    <section>
+      <h2>Announcements</h2>
+      <ul id="announcements" class="cards"></ul>
+    </section>
+    <section id="team-section" hidden>
+      <h2>My team</h2>
+      <table>
+        <thead><tr><th>Worker</th><th>Open</th><th>Overdue</th><th>Completed</th></tr></thead>
+        <tbody id="team"></tbody>
+      </table>
+    </section>
+    <section id="drafts-section" hidden>
+      <h2>My drafts</h2>
+      <p class="hint">Drafts are private. Publishing sends one to everyone on your team.</p>
+      <ul id="drafts" class="cards"></ul>
+    </section>
+  </main>
+</body>
+</html>
