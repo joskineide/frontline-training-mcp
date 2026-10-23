@@ -1,5 +1,300 @@
 [
   {
+    "name": "assign_module",
+    "description": "Assign a training module to a worker on your team, with an optional due date. Safe to retry: if the worker already has this module open, the existing assignment is returned unchanged, with a note saying so. To change its due date, use change_due_date. Get worker IDs from team_progress and module IDs from search_training.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "module_id": {
+          "description": "A module ID from search_training or my_assignments, e.g. 'forklift-safety'.",
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Module Id",
+          "type": "string"
+        },
+        "worker_id": {
+          "description": "A worker ID from team_progress, e.g. 'ana.souza'.",
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Worker Id",
+          "type": "string"
+        },
+        "due_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional. ISO date (YYYY-MM-DD), today or later.",
+          "title": "Due Date"
+        }
+      },
+      "required": [
+        "module_id",
+        "worker_id"
+      ],
+      "title": "assign_moduleArguments"
+    },
+    "outputSchema": {
+      "$defs": {
+        "AssignmentInfo": {
+          "properties": {
+            "module_id": {
+              "title": "Module Id",
+              "type": "string"
+            },
+            "worker_id": {
+              "title": "Worker Id",
+              "type": "string"
+            },
+            "due_date": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Due Date"
+            },
+            "status": {
+              "enum": [
+                "open",
+                "completed"
+              ],
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          "required": [
+            "module_id",
+            "worker_id",
+            "due_date",
+            "status"
+          ],
+          "title": "AssignmentInfo",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "assignment": {
+          "$ref": "#/$defs/AssignmentInfo"
+        },
+        "created": {
+          "title": "Created",
+          "type": "boolean"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "assignment",
+        "created"
+      ],
+      "title": "AssignResult",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "change_due_date",
+    "description": "Change the due date of a module currently assigned to a worker on your team (not yet completed). Only use this when the user explicitly asks to change a deadline, for example after assign_module reports that the module was already assigned.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "module_id": {
+          "description": "A module ID from search_training or my_assignments, e.g. 'forklift-safety'.",
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Module Id",
+          "type": "string"
+        },
+        "worker_id": {
+          "description": "A worker ID from team_progress, e.g. 'ana.souza'.",
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Worker Id",
+          "type": "string"
+        },
+        "due_date": {
+          "description": "ISO date (YYYY-MM-DD), today or later.",
+          "format": "date",
+          "title": "Due Date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "module_id",
+        "worker_id",
+        "due_date"
+      ],
+      "title": "change_due_dateArguments"
+    },
+    "outputSchema": {
+      "$defs": {
+        "AssignmentInfo": {
+          "properties": {
+            "module_id": {
+              "title": "Module Id",
+              "type": "string"
+            },
+            "worker_id": {
+              "title": "Worker Id",
+              "type": "string"
+            },
+            "due_date": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Due Date"
+            },
+            "status": {
+              "enum": [
+                "open",
+                "completed"
+              ],
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          "required": [
+            "module_id",
+            "worker_id",
+            "due_date",
+            "status"
+          ],
+          "title": "AssignmentInfo",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "assignment": {
+          "$ref": "#/$defs/AssignmentInfo"
+        },
+        "previous_due_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Previous Due Date"
+        }
+      },
+      "required": [
+        "assignment",
+        "previous_due_date"
+      ],
+      "title": "DueDateChange",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "draft_announcement",
+    "description": "Save a draft announcement for your team. Drafts are private to you: nobody else sees one until you publish it yourself in the training platform. After calling, show the user the full draft so they can review it before publishing.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "description": "A short title.",
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "body": {
+          "description": "The announcement text.",
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Body",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "body"
+      ],
+      "title": "draft_announcementArguments"
+    },
+    "outputSchema": {
+      "properties": {
+        "draft_id": {
+          "title": "Draft Id",
+          "type": "integer"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "body": {
+          "title": "Body",
+          "type": "string"
+        },
+        "team_size": {
+          "title": "Team Size",
+          "type": "integer"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "draft_id",
+        "title",
+        "body",
+        "team_size",
+        "created_at"
+      ],
+      "title": "Draft",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "get_module",
     "description": "Get one training module's full content by its ID (from search_training or my_assignments).",
     "inputSchema": {

@@ -115,7 +115,7 @@ class TeamProgress(BaseModel):
 # --- Helpers ---
 
 
-def _require(me: Identity, scope: str) -> None:
+def require_scope(me: Identity, scope: str) -> None:
     if scope not in me.scopes:
         raise ToolError("You don't have permission to use this tool.")
 
@@ -145,7 +145,7 @@ def _page(rows: Sequence[Row], offset: int, limit: int) -> tuple[Sequence[Row], 
     return rows[:limit], next_cursor
 
 
-def _led_team(session: Session, me: Identity) -> str | None:
+def led_team(session: Session, me: Identity) -> str | None:
     return session.scalar(
         select(Team.team_id).where(Team.tenant_id == me.tenant_id, Team.manager_id == me.user_id)
     )
@@ -158,10 +158,10 @@ def _own_team(session: Session, me: Identity) -> str | None:
             AppUser.tenant_id == me.tenant_id, AppUser.user_id == me.user_id
         )
     )
-    return member_of or _led_team(session, me)
+    return member_of or led_team(session, me)
 
 
-def _overdue():
+def overdue_condition():
     return and_(Assignment.completed_at.is_(None), Assignment.due_date < func.current_date())
 
 
@@ -169,7 +169,9 @@ def _module_statuses(
     session: Session, me: Identity, module_id: str, worker_ids: list[str]
 ) -> dict[str, ModuleStatus]:
     rows = session.execute(
-        select(Assignment.worker_id, Assignment.completed_at, _overdue().label("overdue")).where(
+        select(
+            Assignment.worker_id, Assignment.completed_at, overdue_condition().label("overdue")
+        ).where(
             Assignment.tenant_id == me.tenant_id,
             Assignment.module_id == module_id,
             Assignment.worker_id.in_(worker_ids),
@@ -201,7 +203,7 @@ def register_read_tools(
         limit: Annotated[int, Field(ge=1, le=10, description="Maximum number of results.")] = 5,
     ) -> SearchResults:
         me = current_identity()
-        _require(me, "training:read")
+        require_scope(me, "training:read")
         if not query.strip():
             raise ToolError("The search query is empty.")
         # A bound parameter, parsed by websearch_to_tsquery: any text is safe and valid (T10).
@@ -220,7 +222,7 @@ def register_read_tools(
         module_id: Annotated[str, Field(min_length=1, max_length=100, description=MODULE_ID)],
     ) -> ModuleDetail:
         me = current_identity()
-        _require(me, "training:read")
+        require_scope(me, "training:read")
         with db.tenant_session(me.tenant_id, read_only=True) as session:
             row = session.execute(
                 select(
@@ -252,7 +254,7 @@ def register_read_tools(
         cursor: Annotated[str | None, Field(description=CURSOR)] = None,
     ) -> AssignmentPage:
         me = current_identity()
-        _require(me, "training:read")
+        require_scope(me, "training:read")
         offset = _offset(cursor)
         query = (
             select(
@@ -260,7 +262,7 @@ def register_read_tools(
                 Module.title,
                 Assignment.due_date,
                 Assignment.completed_at,
-                case((_overdue(), True), else_=False).label("overdue"),
+                case((overdue_condition(), True), else_=False).label("overdue"),
             )
             .join(
                 Module,
@@ -303,7 +305,7 @@ def register_read_tools(
         cursor: Annotated[str | None, Field(description=CURSOR)] = None,
     ) -> AnnouncementPage:
         me = current_identity()
-        _require(me, "training:read")
+        require_scope(me, "training:read")
         offset = _offset(cursor)
         with db.tenant_session(me.tenant_id, read_only=True) as session:
             team_id = _own_team(session, me)
@@ -348,11 +350,11 @@ def register_read_tools(
         cursor: Annotated[str | None, Field(description=CURSOR)] = None,
     ) -> TeamProgress:
         me = current_identity()
-        _require(me, "team:read")
+        require_scope(me, "team:read")
         offset = _offset(cursor)
         counted = Assignment.assignment_id
         with db.tenant_session(me.tenant_id, read_only=True) as session:
-            team_id = _led_team(session, me)
+            team_id = led_team(session, me)
             if team_id is None:
                 raise ToolError("You don't lead a team.")
             if module_id is not None and not session.scalar(
@@ -369,7 +371,7 @@ def register_read_tools(
                     func.count(counted)
                     .filter(Assignment.completed_at.is_not(None))
                     .label("completed"),
-                    func.count(counted).filter(_overdue()).label("overdue"),
+                    func.count(counted).filter(overdue_condition()).label("overdue"),
                 )
                 .outerjoin(
                     Assignment,

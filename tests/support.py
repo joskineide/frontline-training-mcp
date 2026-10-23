@@ -6,10 +6,14 @@ from contextlib import contextmanager
 
 import psycopg
 import pytest
+from mcp import Client
 from psycopg import sql
 from sqlalchemy.engine import make_url
 
-from frontline_training_mcp.migrate import apply_migrations
+from frontline_training_mcp.db import Database
+from frontline_training_mcp.identity import lookup_identity
+from frontline_training_mcp.migrate import apply_dev_seed, apply_migrations
+from frontline_training_mcp.server import create_server
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 requires_db = pytest.mark.skipif(not DATABASE_URL, reason="DATABASE_URL is not set")
@@ -33,3 +37,24 @@ def fresh_database():
     finally:
         with psycopg.connect(admin, autocommit=True) as conn:
             conn.execute(sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(name)))
+
+
+@contextmanager
+def seeded_database():
+    """A throwaway database with the dev seed loaded. Yields a Database."""
+    with fresh_database() as url, pytest.MonkeyPatch.context() as env:
+        env.setenv("APP_ENV", "dev")
+        apply_dev_seed(url)
+        database = Database(url)
+        try:
+            yield database
+        finally:
+            database.dispose()
+
+
+async def call(database: Database, caller: str, tool: str, **arguments):
+    """Call a tool as `tenant/user`, through a real MCP client."""
+    tenant, user = caller.split("/")
+    server = create_server(database, lambda: lookup_identity(database, tenant, user))
+    async with Client(server) as client:
+        return await client.call_tool(tool, arguments)

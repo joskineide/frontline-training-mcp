@@ -11,7 +11,7 @@ import pytest
 from mcp import Client
 
 from frontline_training_mcp.db import Database
-from frontline_training_mcp.identity import Identity
+from frontline_training_mcp.identity import ROLE_SCOPES, Identity
 from frontline_training_mcp.server import create_server
 
 pytestmark = pytest.mark.anyio
@@ -43,6 +43,28 @@ async def test_read_tools_are_read_only_and_closed_world():
         assert tools[name].annotations.open_world_hint is False, name
 
 
+@pytest.mark.parametrize(
+    ("name", "destructive", "idempotent"),
+    [
+        ("assign_module", False, True),  # only adds; a repeat returns the existing row
+        ("change_due_date", True, True),  # overwrites a date; the same date twice is a no-op
+        ("draft_announcement", False, False),  # each call adds a private draft
+    ],
+)
+async def test_write_tools_have_honest_hints(name, destructive, idempotent):
+    hints = {tool.name: tool for tool in await list_tools()}[name].annotations
+    assert hints.read_only_hint is False
+    assert hints.destructive_hint is destructive
+    assert hints.idempotent_hint is idempotent
+    assert hints.open_world_hint is False
+
+
+async def test_nothing_can_publish():
+    """D12: the AI drafts; a person publishes, outside this server."""
+    assert not [tool.name for tool in await list_tools() if "publish" in tool.name]
+    assert not [scope for scopes in ROLE_SCOPES.values() for scope in scopes if "publish" in scope]
+
+
 async def test_no_tool_accepts_a_tenant():
     for tool in await list_tools():
         assert "tenant_id" not in tool.input_schema.get("properties", {}), tool.name
@@ -60,6 +82,6 @@ async def test_the_contract_matches_the_reviewed_snapshot():
     if os.environ.get("UPDATE_SNAPSHOTS") == "1":
         SNAPSHOT.parent.mkdir(exist_ok=True)
         text = json.dumps(contract, indent=2, ensure_ascii=False) + "\n"
-        SNAPSHOT.write_text(text, encoding="utf-8")
+        SNAPSHOT.write_text(text, encoding="utf-8", newline="\n")  # same bytes on every OS
     reviewed = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
     assert contract == reviewed, "The tool contract changed: review the diff, then update."

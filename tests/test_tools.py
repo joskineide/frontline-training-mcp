@@ -1,13 +1,9 @@
 """The read tools against the seeded database, called through a real MCP client."""
 
 import pytest
-from mcp import Client
-from support import fresh_database, requires_db
+from support import call, requires_db, seeded_database
 
-from frontline_training_mcp.db import Database
 from frontline_training_mcp.identity import lookup_identity
-from frontline_training_mcp.migrate import apply_dev_seed
-from frontline_training_mcp.server import create_server
 
 pytestmark = [requires_db, pytest.mark.anyio]
 
@@ -25,20 +21,9 @@ ACME_MODULES = {
 
 @pytest.fixture(scope="module")
 def database():
-    with fresh_database() as url, pytest.MonkeyPatch.context() as env:
-        env.setenv("APP_ENV", "dev")
-        apply_dev_seed(url)
-        database = Database(url)
+    """Read tools never write, so one seeded database serves the whole module."""
+    with seeded_database() as database:
         yield database
-        database.dispose()
-
-
-async def call(database, caller: str, tool: str, **arguments):
-    """Call a tool as `tenant/user`, the way a client would."""
-    tenant, user = caller.split("/")
-    server = create_server(database, lambda: lookup_identity(database, tenant, user))
-    async with Client(server) as client:
-        return await client.call_tool(tool, arguments)
 
 
 def ids(result, key, field="module_id"):

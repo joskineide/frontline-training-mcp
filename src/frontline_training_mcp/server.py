@@ -9,11 +9,14 @@ from mcp.server import MCPServer
 from frontline_training_mcp.db import Database
 from frontline_training_mcp.identity import Identity, dev_identity
 from frontline_training_mcp.tools import register_read_tools
+from frontline_training_mcp.write_tools import register_write_tools
 
 INSTRUCTIONS = (
     "Training for frontline workers and their managers: search and read training modules, "
-    "check assignments and team progress, and read team announcements. "
-    "Module IDs come from search_training or my_assignments."
+    "check assignments and read team announcements. Managers can also see team progress, "
+    "assign training, change due dates and draft announcements; publishing is done by a "
+    "person, outside this server. Module IDs come from search_training or my_assignments; "
+    "worker IDs from team_progress."
 )
 
 
@@ -23,6 +26,7 @@ def create_server(db: Database, current_identity: Callable[[], Identity]) -> MCP
         "frontline-training", version=version("frontline-training-mcp"), instructions=INSTRUCTIONS
     )
     register_read_tools(mcp, db, current_identity)
+    register_write_tools(mcp, db, current_identity)
     return mcp
 
 
