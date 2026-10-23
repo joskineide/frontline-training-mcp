@@ -16,7 +16,11 @@ from frontline_training_mcp.migrate import apply_dev_seed, apply_migrations
 from frontline_training_mcp.server import create_server
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
-requires_db = pytest.mark.skipif(not DATABASE_URL, reason="DATABASE_URL is not set")
+# Skip database tests only on a developer machine without a database. In CI (GitHub sets CI=true)
+# they must run: a missing DATABASE_URL there fails loudly instead of skipping to a green build.
+requires_db = pytest.mark.skipif(
+    not DATABASE_URL and os.environ.get("CI") != "true", reason="DATABASE_URL is not set"
+)
 
 
 def _with_database(url: str, name: str) -> str:

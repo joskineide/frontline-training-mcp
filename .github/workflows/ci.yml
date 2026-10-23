@@ -8,6 +8,23 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      # A throwaway Postgres for the database tests, the same version as local development.
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_USER: ftm
+          POSTGRES_DB: ftm
+          POSTGRES_HOST_AUTH_METHOD: trust  # ephemeral and unreachable from outside: no password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ftm -d ftm"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgresql://ftm@127.0.0.1:5432/ftm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
@@ -16,4 +33,4 @@ jobs:
       - run: uv sync --locked
       - run: uv run ruff check
       - run: uv run ruff format --check
-      - run: uv run pytest
+      - run: uv run pytest -rs  # -rs lists any skipped test, so a silent skip is visible
