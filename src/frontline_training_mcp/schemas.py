@@ -120,6 +120,7 @@ class DraftItem(BaseModel):
 class DraftList(BaseModel):
     drafts: list[DraftItem]
     team_size: int
+    more: bool  # older drafts exist beyond this list
 
 
 class Published(BaseModel):

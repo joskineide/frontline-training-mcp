@@ -12,6 +12,8 @@ from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 
+CONNECT_TIMEOUT = 5  # seconds
+
 
 def sqlalchemy_url(database_url: str) -> str:
     """postgresql://... → postgresql+psycopg://... (SQLAlchemy needs the driver named)."""
@@ -21,12 +23,16 @@ def sqlalchemy_url(database_url: str) -> str:
 
 class Database:
     def __init__(self, database_url: str, **engine_options: Any) -> None:
-        # Fail in seconds, not psycopg's 130-second default, when Postgres is unreachable.
-        engine_options.setdefault("connect_args", {}).setdefault("connect_timeout", 5)
+        url = make_url(sqlalchemy_url(database_url))
+        connect_args = dict(engine_options.pop("connect_args", {}))
+        if "connect_timeout" not in url.query:
+            # Fail in seconds, not psycopg's 130-second default, when Postgres is unreachable.
+            # A connect_timeout in the URL wins (e.g. a longer one for a cold-starting host).
+            connect_args.setdefault("connect_timeout", CONNECT_TIMEOUT)
         # pool_pre_ping checks a pooled connection before handing it out: a hosted Postgres
         # that scales to zero (Neon's free tier) drops idle connections.
         self.engine: Engine = create_engine(
-            sqlalchemy_url(database_url), pool_pre_ping=True, **engine_options
+            url, pool_pre_ping=True, connect_args=connect_args, **engine_options
         )
         # Results must be turned into plain values inside the transaction; nothing reloads after.
         self._sessions = sessionmaker(self.engine, expire_on_commit=False)

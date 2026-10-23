@@ -4,7 +4,7 @@ import psycopg
 import pytest
 from sqlalchemy import MetaData, insert, select, text
 from sqlalchemy.exc import DBAPIError
-from support import fresh_database, requires_db
+from support import DATABASE_URL, fresh_database, requires_db
 
 from frontline_training_mcp.db import Database
 from frontline_training_mcp.models import Base, Tenant
@@ -93,3 +93,25 @@ def test_a_missing_tenant_is_refused(database):
     with pytest.raises(ValueError, match="tenant is required"):
         with database.tenant_session("", read_only=True):
             pass
+
+
+def connect_timeout(database):
+    with database.engine.connect() as conn:
+        return conn.connection.driver_connection.info.get_parameters().get("connect_timeout")
+
+
+def test_connections_give_up_after_five_seconds_by_default():
+    """psycopg would otherwise wait 130 s for a database that doesn't answer."""
+    database = Database(DATABASE_URL)
+    try:
+        assert connect_timeout(database) == "5"
+    finally:
+        database.dispose()
+
+
+def test_a_connect_timeout_in_the_url_wins():
+    database = Database(f"{DATABASE_URL}?connect_timeout=30")
+    try:
+        assert connect_timeout(database) == "30"
+    finally:
+        database.dispose()

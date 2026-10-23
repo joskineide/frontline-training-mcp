@@ -52,6 +52,7 @@ from frontline_training_mcp.schemas import (
 CONTENT_LIMIT = 4_000  # characters, about 1,000 tokens: a starting budget, to be measured
 DRAFTS_LIMIT = 50  # the newest drafts; the stand-in shows no more than that
 BIGINT_MAX = 2**63 - 1  # announcement IDs are bigint
+NO_SUCH_DRAFT = "No such draft."  # one answer for every ID the caller can't publish
 
 
 class ServiceError(Exception):
@@ -557,22 +558,29 @@ def my_drafts(db: Database, me: Identity) -> DraftList:
                 Announcement.status == "draft",
             )
             .order_by(Announcement.created_at.desc(), Announcement.announcement_id.desc())
-            .limit(DRAFTS_LIMIT)
+            .limit(DRAFTS_LIMIT + 1)  # the extra row only signals that older drafts exist
         ).all()
         team_size = _team_size(session, me, team_id)
-    return DraftList(drafts=[DraftItem(**row._mapping) for row in rows], team_size=team_size)
+    return DraftList(
+        drafts=[DraftItem(**row._mapping) for row in rows[:DRAFTS_LIMIT]],
+        team_size=team_size,
+        more=len(rows) > DRAFTS_LIMIT,
+    )
 
 
-def publish_draft(db: Database, me: Identity, draft_id: int) -> Published:
+def publish_draft(db: Database, me: Identity, draft_id: int | None) -> Published:
     """The human step that commits a draft (principle 8). Two independent locks keep it away
-    from MCP: only platform identities can call it, and only they can hold the scope."""
+    from MCP: only platform identities can call it, and only they can hold the scope.
+
+    `draft_id` is None when the caller sent something that isn't an ID at all; it gets the
+    same answer as an unknown ID, after the same checks."""
     if me.audience != "platform":
         raise Forbidden("Announcements can only be published in the training platform.")
     require_scope(me, "announcements:publish")
-    if not 0 < draft_id <= BIGINT_MAX:
-        raise NotFound(f"No draft with ID {draft_id}.")  # the same answer as any unknown ID
     with db.tenant_session(me.tenant_id, read_only=False) as session:
         team_id = _manager_context(session, me)
+        if draft_id is None or not 0 < draft_id <= BIGINT_MAX:
+            raise NotFound(NO_SUCH_DRAFT)
         # One conditional UPDATE is the referee: of two simultaneous publishes, exactly one
         # finds the row still a draft.
         row = session.execute(
@@ -599,7 +607,7 @@ def publish_draft(db: Database, me: Identity, draft_id: int) -> Published:
             if already:
                 raise Conflict("This announcement is already published.")
             # The same answer for unknown IDs, other authors, other teams and other tenants.
-            raise NotFound(f"No draft with ID {draft_id}.")
+            raise NotFound(NO_SUCH_DRAFT)
         recipients = _team_size(session, me, team_id)
         _audit(session, me, "platform:publish_draft", {"announcement_id": draft_id}, "published")
     return Published(

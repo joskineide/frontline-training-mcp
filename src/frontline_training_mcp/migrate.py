@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 import psycopg
+from psycopg.conninfo import conninfo_to_dict
 
 ROOT = Path(__file__).resolve().parents[2]
 MIGRATIONS_DIR = ROOT / "migrations"
@@ -23,6 +24,13 @@ class MigrationError(RuntimeError):
     pass
 
 
+def _connect(conninfo: str, **options) -> psycopg.Connection:
+    # Fail in seconds, not psycopg's 130-second default, unless the URL sets its own timeout.
+    if "connect_timeout" not in conninfo_to_dict(conninfo):
+        options["connect_timeout"] = 5
+    return psycopg.connect(conninfo, **options)
+
+
 def _checksum(sql: str) -> str:
     return hashlib.sha256(sql.encode("utf-8")).hexdigest()
 
@@ -30,7 +38,7 @@ def _checksum(sql: str) -> str:
 def apply_migrations(conninfo: str, directory: Path = MIGRATIONS_DIR) -> list[str]:
     """Apply pending migrations; refuse to run if an already-applied file was edited."""
     applied_now: list[str] = []
-    with psycopg.connect(conninfo, autocommit=True) as conn:
+    with _connect(conninfo, autocommit=True) as conn:
         conn.execute("SELECT pg_advisory_lock(%s)", (LOCK_ID,))
         conn.execute(
             "CREATE TABLE IF NOT EXISTS schema_migration ("
@@ -61,7 +69,7 @@ def apply_dev_seed(conninfo: str, seed: Path = DEV_SEED) -> None:
     """Load the fake demo data. It replaces all tenant data, so it only runs in dev mode."""
     if os.environ.get("APP_ENV") != "dev":
         raise MigrationError("The seed replaces all data; it only runs with APP_ENV=dev.")
-    with psycopg.connect(conninfo) as conn:  # one transaction, committed on exit
+    with _connect(conninfo) as conn:  # one transaction, committed on exit
         conn.execute(seed.read_text(encoding="utf-8"))
 
 
@@ -80,6 +88,8 @@ def main() -> None:
             print("Dev seed loaded.")
     except MigrationError as exc:
         sys.exit(str(exc))
+    except psycopg.OperationalError as exc:
+        sys.exit(f"Cannot reach the database: {exc}")
 
 
 if __name__ == "__main__":

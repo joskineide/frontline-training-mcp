@@ -106,7 +106,7 @@ async function render() {
     ...workers.map((w) => row([w.name, w.open, w.overdue, w.completed]))
   );
 
-  const { drafts, team_size: teamSize } = await api("/api/me/drafts");
+  const { drafts, team_size: teamSize, more: moreDrafts } = await api("/api/me/drafts");
   $("drafts").replaceChildren(
     ...(drafts.length
       ? drafts.map((d) => {
@@ -117,7 +117,8 @@ async function render() {
           item.append(button);
           return item;
         })
-      : [element("li", "No drafts.", "empty")])
+      : [element("li", "No drafts.", "empty")]),
+    ...(moreDrafts ? [element("li", `Showing the newest ${drafts.length} drafts.`, "empty")] : [])
   );
 }
 

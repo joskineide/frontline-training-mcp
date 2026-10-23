@@ -16,6 +16,7 @@ Browser-facing protections, since this app renders text written by users:
 """
 
 import os
+import re
 from pathlib import Path
 
 import uvicorn
@@ -41,6 +42,7 @@ from frontline_training_mcp.identity import (
 
 STATIC = Path(__file__).parent / "static"
 LOCAL_HOSTS = ["127.0.0.1", "localhost"]
+DRAFT_ID = re.compile(r"[0-9]{1,19}")  # bigint-sized digits; anything else is "not an ID"
 
 ERROR_STATUS = {
     service.InvalidRequest: 400,
@@ -126,7 +128,9 @@ def create_app(db: Database, allowed_hosts: list[str] = LOCAL_HOSTS) -> ASGIApp:
         return respond(service.my_drafts(db, caller(request)))
 
     def publish(request: Request) -> Response:
-        draft_id = request.path_params["draft_id"]
+        # Parsed here, strictly: no path text, however long or odd, ever reaches int() unchecked.
+        raw = request.path_params["draft_id"]
+        draft_id = int(raw) if DRAFT_ID.fullmatch(raw) else None
         return respond(service.publish_draft(db, caller(request), draft_id))
 
     async def unauthorized(request: Request, exc: Exception) -> Response:
@@ -147,7 +151,7 @@ def create_app(db: Database, allowed_hosts: list[str] = LOCAL_HOSTS) -> ASGIApp:
             Route("/api/me/announcements", announcements),
             Route("/api/me/team", team),
             Route("/api/me/drafts", drafts),
-            Route("/api/drafts/{draft_id:int}/publish", publish, methods=["POST"]),
+            Route("/api/drafts/{draft_id}/publish", publish, methods=["POST"]),
         ],
         middleware=[Middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)],
         exception_handlers={Unauthorized: unauthorized, service.ServiceError: refused},

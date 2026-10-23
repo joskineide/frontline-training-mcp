@@ -1,9 +1,6 @@
 """The development stand-in for login must never be usable outside dev mode."""
 
-import time
-
 import pytest
-from sqlalchemy.exc import OperationalError
 from support import requires_db, seeded_database
 
 from frontline_training_mcp.db import Database
@@ -42,11 +39,3 @@ def test_the_mcp_entry_point_yields_the_mcp_audience(monkeypatch):
         me = dev_identity(db)
     assert me.audience == "mcp"
     assert "announcements:publish" not in me.scopes
-
-
-def test_an_unreachable_database_fails_in_seconds():
-    started = time.monotonic()
-    with pytest.raises(OperationalError):
-        with UNUSED_DB.engine.connect():
-            pass
-    assert time.monotonic() - started < 20  # psycopg's own default would wait 130 s

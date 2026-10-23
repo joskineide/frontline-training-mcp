@@ -56,7 +56,9 @@ def test_the_page_is_labeled_and_protected(client):
     response = client.get("/")
     assert response.status_code == 200
     assert "AI-generated UI" in response.text
-    assert "script-src 'self'" in response.headers["content-security-policy"]
+    policy = response.headers["content-security-policy"]
+    assert "script-src 'self'" in policy
+    assert "require-trusted-types-for 'script'" in policy  # the browser refuses HTML sinks
     assert response.headers["x-content-type-options"] == "nosniff"
 
 
@@ -136,11 +138,43 @@ def test_publishing_twice_is_a_conflict(client):
     assert publish(client, draft_id, MARCOS).status_code == 409
 
 
-@pytest.mark.parametrize("draft_id", [0, 999_999, 2**63, 10**30])
+@pytest.mark.parametrize(
+    "draft_id", [0, 999_999, 2**63, 10**30, "1" * 5000, "-1", "abc", "1.5", "00000000000000000001"]
+)
 def test_unknown_or_impossible_draft_ids_get_the_same_404(client, draft_id):
     response = publish(client, draft_id, MARCOS)
     assert response.status_code == 404
-    assert response.json() == {"error": f"No draft with ID {draft_id}."}
+    assert response.json() == {"error": "No such draft."}
+
+
+def test_more_drafts_than_shown_are_signalled(client, database):
+    marcos = lookup_identity(database, "acme", "marcos.reis", audience="mcp")
+    for n in range(55):
+        service.draft_announcement(database, marcos, f"Draft {n}", "Body")
+    listed = get(client, "/api/me/drafts", MARCOS).json()
+    assert len(listed["drafts"]) == 50 and listed["more"] is True
+    assert "Holiday schedule" not in [d["title"] for d in listed["drafts"]]  # the oldest
+    with database.tenant_session("acme", read_only=True) as session:
+        oldest = session.scalar(
+            select(Announcement.announcement_id).where(
+                Announcement.tenant_id == "acme", Announcement.title == "Holiday schedule"
+            )
+        )
+    assert publish(client, oldest, MARCOS).status_code == 200  # still publishable by ID
+
+
+def test_an_unexpected_error_is_a_500_with_the_browser_protections(database, monkeypatch):
+    def broken(*args):
+        raise RuntimeError("a bug")
+
+    monkeypatch.setattr(service, "profile", broken)
+    client = TestClient(
+        create_app(database), base_url="http://127.0.0.1:8081", raise_server_exceptions=False
+    )
+    response = get(client, "/api/me", ANA)
+    assert response.status_code == 500
+    assert "a bug" not in response.text  # no internals leak
+    assert "content-security-policy" in response.headers
 
 
 def test_drafts_list_only_what_can_be_published(client, database):
