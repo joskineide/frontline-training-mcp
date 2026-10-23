@@ -1,34 +1,13 @@
 """Rules the database enforces by itself. Needs a Postgres: see "Local database" in the README."""
 
-import os
-import uuid
-from contextlib import contextmanager
-
 import psycopg
 import pytest
-from psycopg import errors, sql
-from psycopg.conninfo import make_conninfo
+from psycopg import errors
+from support import fresh_database, requires_db
 
 from frontline_training_mcp.migrate import MigrationError, apply_dev_seed, apply_migrations
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "")
-pytestmark = pytest.mark.skipif(not DATABASE_URL, reason="DATABASE_URL is not set")
-
-
-@contextmanager
-def fresh_database():
-    """A throwaway database with every migration applied; dropped afterwards."""
-    name = f"ftm_test_{uuid.uuid4().hex[:8]}"
-    admin = make_conninfo(DATABASE_URL, dbname="postgres")
-    with psycopg.connect(admin, autocommit=True) as conn:
-        conn.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name)))
-    url = make_conninfo(DATABASE_URL, dbname=name)
-    try:
-        apply_migrations(url)
-        yield url
-    finally:
-        with psycopg.connect(admin, autocommit=True) as conn:
-            conn.execute(sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(name)))
+pytestmark = requires_db
 
 
 @pytest.fixture(scope="module")

@@ -214,6 +214,11 @@ When a note matters to the model, it is restated in model-facing words in a desc
    - Small, reversible, verifiable writes (an assignment) are done by the AI behind host approval.
    - Wide-reach, irreversible actions (broadcasting an announcement) are only *drafted* by the AI. A human publishes, outside this server.
 
+9. **Data access is explicit.**
+   - One short session per tenant-scoped transaction, never shared between requests.
+   - No ORM relationships, so nothing loads implicitly outside the transaction.
+   - The tenant filter is written in every query. Row-level security is the automatic second layer, not a replacement for the first.
+
 ## 7. Request lifecycle
 
 Each check runs as early, and therefore as cheaply, as possible. Nothing touches the database before the token has been checked.
@@ -256,6 +261,7 @@ Each check runs as early, and therefore as cheaply, as possible. Nothing touches
 | D12 | Can the AI publish announcements? | **no: `draft_announcement` only.** A human publishes, outside MCP | A broadcast is irreversible, reaches many people, and its text is model-composed (it can be hallucinated or carry injected content). Drafting is where the AI adds value; publishing is one human click. |
 | D13 | Recertification | **at most one open assignment per worker and module** (`UNIQUE … WHERE completed_at IS NULL`) | Repeated calls stay idempotent while an assignment is open, and recurring compliance training (e.g. annual forklift renewal) stays possible after completion. |
 | D14 | A platform stand-in for demos (viewer + publish) | **build it after the core server is done**; AI-generated UI, clearly labeled | Its purpose is visual: showing what each user sees and closing the draft → publish loop. **The security layer is not AI-generated:** it reuses this server's token validation and tenant-scoped data access, and accepts only tokens issued for the *platform's* audience, never MCP tokens. Otherwise it would be the backdoor D4 guards against. |
+| D15 | Synchronous or async database access | **synchronous SQLAlchemy 2.x over psycopg 3.** Tools are plain functions, which the MCP SDK runs in a worker thread pool | There's no measured need for async: tool calls are short database queries, and Cloud Run scales by adding instances, not by packing more concurrency into one. Behavior is identical on every development platform: psycopg's async mode refuses Windows's default event loop (`ProactorEventLoop`), so async would make local runs and tests differ from production. There are fewer failure modes (no implicit loads after a transaction ends). Revisit if profiling shows per-instance concurrency is the bottleneck. |
 
 ### Open
 
