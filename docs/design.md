@@ -126,12 +126,12 @@ When a note matters to the model, it is restated in model-facing words in a desc
 - **Note:** there is no user argument. "My" always means the token's subject, so a user can't ask about someone else.
 
 ### `team_progress`
-- **Description:** "Show training progress for the workers on your team: each worker's ID, name, and counts of assigned, completed and overdue modules. Pass module_id to also see each worker's status for that one module."
+- **Description:** "Show training progress for the workers on your team: each worker's ID, name, and counts of open, completed and overdue modules. Pass module_id to also see each worker's status for that one module."
 - **Input:**
   - `module_id`: optional;
   - `limit`: 1–50, default 25;
   - `cursor`: optional.
-- **Output:** `{workers: [{worker_id, name, assigned, completed, overdue, module_status?}], next_cursor}`
+- **Output:** `{workers: [{worker_id, name, open, completed, overdue, module_status?}], next_cursor}`. The count is `open` rather than `assigned`, which a model could read as including completed modules. `module_status` is `not_assigned`, `open`, `overdue` or `completed`.
 - **Annotations:** read-only; closed world.
 - **Note:** this covers only the caller's **own team**, never the whole tenant. It is also where the model learns the `worker_id`s that `assign_module` needs.
 
