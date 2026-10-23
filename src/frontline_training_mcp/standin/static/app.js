@@ -1,7 +1,8 @@
 "use strict";
 // Platform stand-in UI (AI-generated, development only).
 // Security rule for this file: text that people wrote (announcements, titles, names) is
-// only ever inserted with textContent, never parsed as HTML. tests/test_standin.py checks it.
+// only ever inserted with textContent, never parsed as HTML. tests/test_standin_static.py
+// checks it, and the page's Trusted Types policy makes the browser enforce it.
 
 const $ = (id) => document.getElementById(id);
 let viewer = "";
@@ -86,12 +87,13 @@ async function render() {
       : [row(["Nothing assigned.", "", ""])])
   );
 
-  const { announcements } = await api("/api/me/announcements");
+  const { announcements, next_cursor: more } = await api("/api/me/announcements");
   $("announcements").replaceChildren(
     ...(announcements.length
       ? announcements.map((a) =>
           card(a.title, a.body, `${a.author_name} · ${new Date(a.published_at).toLocaleString()}`))
-      : [element("li", "No announcements yet.", "empty")])
+      : [element("li", "No announcements yet.", "empty")]),
+    ...(more ? [element("li", `Showing the newest ${announcements.length}.`, "empty")] : [])
   );
 
   const manager = me.role === "manager";
@@ -121,7 +123,9 @@ async function render() {
 
 async function publish(draft, teamSize) {
   // A deliberate human step: the assistant can only draft (design decision D12).
-  if (!confirm(`Publish "${draft.title}" to ${teamSize} people? This can't be undone here.`)) return;
+  // Fixed facts first: the title is AI-written text and must not push them out of view.
+  const question = `Publish to ${teamSize} people? This can't be undone here.\n\nTitle: ${draft.title}`;
+  if (!confirm(question)) return;
   try {
     await api(`/api/drafts/${encodeURIComponent(draft.draft_id)}/publish`, { method: "POST" });
     await render();

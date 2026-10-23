@@ -34,13 +34,15 @@ def ids(result, key, field="module_id"):
 
 
 def test_roles_map_to_scopes(database):
-    assert lookup_identity(database, "acme", "ana.souza").scopes == {"training:read"}
-    assert "team:read" in lookup_identity(database, "acme", "marcos.reis").scopes
+    assert lookup_identity(database, "acme", "ana.souza", audience="mcp").scopes == {
+        "training:read"
+    }
+    assert "team:read" in lookup_identity(database, "acme", "marcos.reis", audience="mcp").scopes
 
 
 def test_an_unknown_user_is_refused(database):
     with pytest.raises(LookupError):
-        lookup_identity(database, "acme", "li.wei")  # exists, but in another tenant
+        lookup_identity(database, "acme", "li.wei", audience="mcp")  # exists, but in another tenant
 
 
 # --- search_training ---

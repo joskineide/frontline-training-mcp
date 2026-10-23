@@ -6,10 +6,13 @@ refuses to start otherwise. Login replaces it with tokens issued for the *platfo
 audience, never MCP tokens.
 
 Browser-facing protections, since this app renders text written by users:
-- the page inserts user text with textContent only (no HTML parsing), and a strict
-  Content-Security-Policy blocks inline and third-party scripts;
+- the page inserts user text with textContent only (no HTML parsing). A strict
+  Content-Security-Policy blocks inline and third-party scripts, and its Trusted Types
+  directives make the browser itself refuse HTML-parsing sinks;
 - only 127.0.0.1/localhost Host headers are accepted (DNS rebinding);
-- no CORS is enabled, so a foreign site can't send the custom header (CSRF).
+- identity travels in a custom header, which a foreign site can't send without CORS
+  approval, and none is granted (CSRF). That holds only while identity is a header: if
+  login ever moved to cookies, publishing would also need an Origin check.
 """
 
 import os
@@ -17,6 +20,7 @@ from pathlib import Path
 
 import uvicorn
 from pydantic import BaseModel
+from sqlalchemy.exc import OperationalError
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -49,7 +53,8 @@ SECURITY_HEADERS = [
     (
         b"content-security-policy",
         b"default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; "
-        b"base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+        b"base-uri 'none'; form-action 'none'; frame-ancestors 'none'; "
+        b"require-trusted-types-for 'script'; trusted-types 'none'",
     ),
     (b"x-content-type-options", b"nosniff"),
     (b"referrer-policy", b"no-referrer"),
@@ -62,7 +67,8 @@ class Unauthorized(Exception):
 
 
 class SecurityHeaders:
-    """Adds the browser protections above to every response."""
+    """Adds the browser protections above to every response. It wraps the whole app, outside
+    Starlette's own error layer, so its 400s and 500s carry the headers too."""
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
@@ -80,7 +86,7 @@ def dev_mode() -> bool:
     return os.environ.get("APP_ENV") == "dev"
 
 
-def create_app(db: Database, allowed_hosts: list[str] = LOCAL_HOSTS) -> Starlette:
+def create_app(db: Database, allowed_hosts: list[str] = LOCAL_HOSTS) -> ASGIApp:
     def caller(request: Request) -> Identity:
         if not dev_mode():
             raise Unauthorized("No login exists yet: the stand-in only runs in dev mode.")
@@ -127,10 +133,11 @@ def create_app(db: Database, allowed_hosts: list[str] = LOCAL_HOSTS) -> Starlett
         return JSONResponse({"error": str(exc)}, status_code=401)
 
     async def refused(request: Request, exc: Exception) -> Response:
-        status = next(code for kind, code in ERROR_STATUS.items() if isinstance(exc, kind))
+        # Any expected failure, including a ServiceError type added later, gets its message.
+        status = next((code for kind, code in ERROR_STATUS.items() if isinstance(exc, kind)), 400)
         return JSONResponse({"error": str(exc)}, status_code=status)
 
-    return Starlette(
+    app = Starlette(
         routes=[
             Route("/", index),
             Mount("/static", StaticFiles(directory=STATIC), name="static"),
@@ -142,12 +149,10 @@ def create_app(db: Database, allowed_hosts: list[str] = LOCAL_HOSTS) -> Starlett
             Route("/api/me/drafts", drafts),
             Route("/api/drafts/{draft_id:int}/publish", publish, methods=["POST"]),
         ],
-        middleware=[
-            Middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts),
-            Middleware(SecurityHeaders),
-        ],
+        middleware=[Middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)],
         exception_handlers={Unauthorized: unauthorized, service.ServiceError: refused},
     )
+    return SecurityHeaders(app)
 
 
 def main() -> None:
@@ -156,5 +161,14 @@ def main() -> None:
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
         raise SystemExit("DATABASE_URL is not set.")
-    port = int(os.environ.get("STANDIN_PORT", "8081"))
-    uvicorn.run(create_app(Database(database_url)), host="127.0.0.1", port=port)
+    try:
+        port = int(os.environ.get("STANDIN_PORT", "8081"))
+    except ValueError as exc:
+        raise SystemExit("STANDIN_PORT must be a port number.") from exc
+    db = Database(database_url)
+    try:
+        with db.engine.connect():  # fail at startup, not on every request, if Postgres is down
+            pass
+    except OperationalError as exc:
+        raise SystemExit(f"Cannot reach the database: {exc.orig}") from exc
+    uvicorn.run(create_app(db), host="127.0.0.1", port=port)

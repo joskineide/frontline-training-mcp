@@ -59,6 +59,8 @@ def seeded_database():
 async def call(database: Database, caller: str, tool: str, **arguments):
     """Call a tool as `tenant/user`, through a real MCP client."""
     tenant, user = caller.split("/")
-    server = create_server(database, lambda: lookup_identity(database, tenant, user))
+    server = create_server(
+        database, lambda: lookup_identity(database, tenant, user, audience="mcp")
+    )
     async with Client(server) as client:
         return await client.call_tool(tool, arguments)

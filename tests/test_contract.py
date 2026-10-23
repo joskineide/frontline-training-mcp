@@ -29,7 +29,7 @@ READ_TOOLS = {
 async def list_tools():
     server = create_server(
         Database("postgresql://unused@127.0.0.1:1/unused"),  # never connected to here
-        lambda: Identity(tenant_id="unused", user_id="unused", scopes=frozenset()),
+        lambda: Identity(tenant_id="unused", user_id="unused", scopes=frozenset(), audience="mcp"),
     )
     async with Client(server) as client:
         return sorted((await client.list_tools()).tools, key=lambda tool: tool.name)
@@ -59,8 +59,8 @@ async def test_write_tools_have_honest_hints(name, destructive, idempotent):
     assert hints.open_world_hint is False
 
 
-async def test_nothing_can_publish():
-    """D12: the AI drafts; a person publishes, outside this server."""
+async def test_no_mcp_tool_or_scope_can_publish():
+    """D12: the AI drafts; a person publishes, in the platform (a separate app)."""
     assert not [tool.name for tool in await list_tools() if "publish" in tool.name]
     assert not [scope for scopes in ROLE_SCOPES.values() for scope in scopes if "publish" in scope]
 

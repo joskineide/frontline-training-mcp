@@ -1,6 +1,10 @@
 """The development stand-in for login must never be usable outside dev mode."""
 
+import time
+
 import pytest
+from sqlalchemy.exc import OperationalError
+from support import requires_db, seeded_database
 
 from frontline_training_mcp.db import Database
 from frontline_training_mcp.identity import dev_identity
@@ -27,3 +31,22 @@ def test_the_dev_identity_needs_a_tenant_and_a_user(monkeypatch):
     monkeypatch.setenv("DEV_USER", "ana.souza")
     with pytest.raises(RuntimeError, match="DEV_USER=<tenant>/<user>"):
         dev_identity(UNUSED_DB)
+
+
+@requires_db
+def test_the_mcp_entry_point_yields_the_mcp_audience(monkeypatch):
+    """Pins the first publish lock at its source: MCP callers are never platform callers."""
+    monkeypatch.setenv("APP_ENV", "dev")
+    with seeded_database() as db:
+        monkeypatch.setenv("DEV_USER", "acme/marcos.reis")  # a manager
+        me = dev_identity(db)
+    assert me.audience == "mcp"
+    assert "announcements:publish" not in me.scopes
+
+
+def test_an_unreachable_database_fails_in_seconds():
+    started = time.monotonic()
+    with pytest.raises(OperationalError):
+        with UNUSED_DB.engine.connect():
+            pass
+    assert time.monotonic() - started < 20  # psycopg's own default would wait 130 s

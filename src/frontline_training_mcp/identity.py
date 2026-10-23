@@ -36,13 +36,14 @@ class Identity:
     tenant_id: str
     user_id: str
     scopes: frozenset[str]
-    audience: Audience = "mcp"
+    audience: Audience
 
 
-def lookup_identity(
-    db: Database, tenant_id: str, user_id: str, audience: Audience = "mcp"
-) -> Identity:
-    """Resolve a known user to an Identity, with the scopes of their role for that audience."""
+def lookup_identity(db: Database, tenant_id: str, user_id: str, *, audience: Audience) -> Identity:
+    """Resolve a known user to an Identity, with the scopes of their role for that audience.
+
+    `audience` has no default on purpose: every entry point states which surface it serves.
+    """
     with db.tenant_session(tenant_id, read_only=True) as session:
         role = session.scalar(
             select(AppUser.role).where(AppUser.tenant_id == tenant_id, AppUser.user_id == user_id)
@@ -74,7 +75,7 @@ def dev_identity(db: Database) -> Identity:
         tenant_id, user_id = parse_dev_user(os.environ.get("DEV_USER", ""))
     except RuntimeError as exc:
         raise RuntimeError(f"Set DEV_USER=<tenant>/<user>. {exc}") from exc
-    return lookup_identity(db, tenant_id, user_id)
+    return lookup_identity(db, tenant_id, user_id, audience="mcp")
 
 
 def dev_directory(db: Database) -> list[dict[str, str]]:

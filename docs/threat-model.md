@@ -54,6 +54,7 @@ Prevention eventually fails. These signals make an attack visible:
   - ship a fix through CI.
 
 ## Accepted risks and out of scope
+- **Development stand-ins for login.** Until login exists, `DEV_USER` (MCP server) and the `X-Dev-User` header (platform stand-in) let any local process act as any user. Both refuse to run outside `APP_ENV=dev`, and both bind to 127.0.0.1 with fake data. They are replaced by verified tokens, one audience each (T2). Until then, T2, T3 and T8 hold only at the service layer, not at the edge.
 - **Compromised clients or hosts** (a malicious MCP client, or a host that skips approval): the server enforces everything itself (T1–T3), but can't protect a user from their own compromised machine.
 - **No sender-constrained tokens (DPoP) and no edge firewall.** These are deliberate scope choices for a single-service deployment, documented with their reasons.
 - **Insiders with database access, and the identity provider's own security:** outside this system's boundary.

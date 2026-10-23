@@ -4,7 +4,19 @@ import re
 
 from frontline_training_mcp.standin.app import STATIC
 
-HTML_SINKS = ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(")
+HTML_SINKS = (
+    "innerHTML",
+    "outerHTML",
+    "insertAdjacentHTML",
+    "document.write",
+    "eval(",
+    "new Function",
+    "DOMParser",
+    "createContextualFragment",
+    "setHTMLUnsafe",
+    "parseHTMLUnsafe",
+    "srcdoc",
+)
 
 
 def test_the_ui_never_parses_text_as_html():

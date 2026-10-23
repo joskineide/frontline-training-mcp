@@ -20,7 +20,7 @@
 - an eval of real models using the tools.
 
 **Out of scope:**
-- the platform itself: UI, content authoring, and **publishing announcements**, which is a human action (see D12, D14);
+- the platform itself: its UI, content authoring, and **publishing announcements**, which is a human action (D12). A small, development-only stand-in for the platform exists for demos (D14);
 - MCP resources and prompts;
 - SSO/SCIM provisioning;
 - embedding-based search.
@@ -42,12 +42,12 @@ Every request acts **as exactly one user, in exactly one tenant**. Both come fro
 | Entity | Key fields | Notes |
 |---|---|---|
 | `tenant` | id, name | |
-| `team` | id, tenant_id, name, manager_id | one manager per team |
+| `team` | id, tenant_id, name, manager_id | one manager per team, and **a manager leads at most one team** (a unique constraint, so "the team I lead" is never ambiguous) |
 | `app_user` | id, tenant_id, team_id, display_name, role (`worker` / `manager`), external subject | linked to the identity provider's subject (`sub`) |
 | `module` | tenant_id, **module_id**, title, summary, content, duration_minutes, search vector | **one catalog per tenant**, shared by all its workers. Content is written by the tenant's staff, so it is **untrusted text** |
 | `assignment` | tenant_id, worker_id, module_id, assigned_by, due_date, assigned_at, completed_at | links a worker to a module. Status is **derived**: completed if `completed_at` is set, otherwise open; overdue if open past `due_date`. At most **one open assignment per worker and module** (a partial unique index), so completed modules can be assigned again for recertification (D13) |
 | `announcement` | tenant_id, team_id, author_id, title, body, status (`draft` / `published`), created_at, published_at, published_by | drafted by a manager (through MCP), published by a human (outside MCP), read by the team. **Untrusted text** |
-| `audit_log` | tenant_id, actor_id, tool, target IDs, outcome, at, trace_id | append-only; one row per write |
+| `audit_log` | tenant_id, actor_id, tool, target IDs, outcome, at, trace_id | append-only; one row per write. `tool` is the MCP tool's name, or a `platform:`-prefixed action for writes made in the platform (e.g. `platform:publish_draft`) |
 
 Every tenant-owned table carries `tenant_id` and is protected by a row-level security policy. Completions are recorded by the platform, which is out of scope; here they come from seed data.
 
@@ -62,7 +62,11 @@ Tools are authorized by **OAuth scopes** carried in the access token. Roles are 
 | `assignments:write` | `assign_module`, `change_due_date` |
 | `announcements:draft` | `draft_announcement` |
 
-No scope publishes anything. An MCP token cannot publish an announcement, whoever holds it.
+**No MCP scope publishes anything**: an MCP token cannot publish an announcement, whoever holds it. Publishing needs a scope that exists only for people using the platform itself (D14), and that is never granted to MCP clients:
+
+| Platform-only scope | Grants | Role |
+|---|---|---|
+| `announcements:publish` | publishing your own team's drafts, in the platform | manager |
 
 | Role | Scopes |
 |---|---|
@@ -260,7 +264,7 @@ Each check runs as early, and therefore as cheaply, as possible. Nothing touches
 | D10 | Where completion lives | **`assignment.completed_at`** | No tool records completions. A separate table would add joins without adding a capability. |
 | D12 | Can the AI publish announcements? | **no: `draft_announcement` only.** A human publishes, outside MCP | A broadcast is irreversible, reaches many people, and its text is model-composed (it can be hallucinated or carry injected content). Drafting is where the AI adds value; publishing is one human click. |
 | D13 | Recertification | **at most one open assignment per worker and module** (`UNIQUE … WHERE completed_at IS NULL`) | Repeated calls stay idempotent while an assignment is open, and recurring compliance training (e.g. annual forklift renewal) stays possible after completion. |
-| D14 | A platform stand-in for demos (viewer + publish) | **build it after the core server is done**; AI-generated UI, clearly labeled | Its purpose is visual: showing what each user sees and closing the draft → publish loop. **The security layer is not AI-generated:** it reuses this server's token validation and tenant-scoped data access, and accepts only tokens issued for the *platform's* audience, never MCP tokens. Otherwise it would be the backdoor D4 guards against. |
+| D14 | A platform stand-in for demos (viewer + publish) | **a small separate web app, AI-generated UI clearly labeled; built early, development-only until login exists** | Its purpose is visual: showing what each user sees and closing the draft → publish loop. **The security layer is not AI-generated:** the stand-in calls the same service functions as the MCP tools, so it applies exactly the same tenant-scoped rules. Until login exists, an `X-Dev-User` header plays the caller, only with `APP_ENV=dev` and only on 127.0.0.1 (as `DEV_USER` does for MCP). With login, it accepts only tokens issued for the *platform's* audience, never MCP tokens. Publishing is locked away from MCP twice: the caller's audience must be the platform, and the platform-only scope `announcements:publish` is required. Otherwise the stand-in would be the backdoor D4 guards against. |
 | D15 | Synchronous or async database access | **synchronous SQLAlchemy 2.x over psycopg 3.** Tools are plain functions, which the MCP SDK runs in a worker thread pool | There's no measured need for async: tool calls are short database queries, and Cloud Run scales by adding instances, not by packing more concurrency into one. Behavior is identical on every development platform: psycopg's async mode refuses Windows's default event loop (`ProactorEventLoop`), so async would make local runs and tests differ from production. There are fewer failure modes (no implicit loads after a transaction ends). Revisit if profiling shows per-instance concurrency is the bottleneck. |
 
 ### Open

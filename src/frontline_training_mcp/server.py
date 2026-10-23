@@ -5,6 +5,7 @@ from collections.abc import Callable
 from importlib.metadata import version
 
 from mcp.server import MCPServer
+from sqlalchemy.exc import OperationalError
 
 from frontline_training_mcp.db import Database
 from frontline_training_mcp.identity import Identity, dev_identity
@@ -39,6 +40,8 @@ def main() -> None:
         caller = dev_identity(db)  # there is no login yet: refuse to start outside dev mode
     except (RuntimeError, LookupError) as exc:
         raise SystemExit(str(exc)) from exc
+    except OperationalError as exc:
+        raise SystemExit(f"Cannot reach the database: {exc.orig}") from exc
     server = create_server(db, lambda: caller)
     # Cloud Run injects PORT (default 8080); the same contract works locally.
     server.run(transport="streamable-http", port=int(os.environ.get("PORT", "8080")))

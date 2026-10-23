@@ -95,3 +95,8 @@ def test_the_seed_loads_two_tenants(monkeypatch):
         with psycopg.connect(url) as conn:
             tenants = conn.execute("SELECT tenant_id FROM tenant ORDER BY 1").fetchall()
     assert tenants == [("acme",), ("globex",)]
+
+
+def test_a_manager_leads_at_most_one_team(conn):
+    with pytest.raises(errors.UniqueViolation), conn.transaction():
+        conn.execute("INSERT INTO team VALUES ('acme', 'store-99', 'Store 99', 'marcos')")

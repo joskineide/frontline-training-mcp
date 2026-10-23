@@ -2,8 +2,9 @@
 
 The MCP tools and the platform stand-in are thin adapters over these functions, so both
 enforce exactly the same rules. Every function takes the caller's Identity, checks its
-scope, and works inside one transaction scoped to the caller's tenant; every query states
-its tenant filter (design principle 9). Expected failures raise a ServiceError whose message
+scope where one applies (profile needs none: it reads only the caller's own row), and works
+inside one transaction scoped to the caller's tenant; every query states its tenant filter
+(design principle 9). Expected failures raise a ServiceError whose message
 is written for the caller; each adapter maps it to its own error shape.
 """
 
@@ -49,6 +50,8 @@ from frontline_training_mcp.schemas import (
 )
 
 CONTENT_LIMIT = 4_000  # characters, about 1,000 tokens: a starting budget, to be measured
+DRAFTS_LIMIT = 50  # the newest drafts; the stand-in shows no more than that
+BIGINT_MAX = 2**63 - 1  # announcement IDs are bigint
 
 
 class ServiceError(Exception):
@@ -548,9 +551,13 @@ def my_drafts(db: Database, me: Identity) -> DraftList:
             .where(
                 Announcement.tenant_id == me.tenant_id,
                 Announcement.author_id == me.user_id,
+                # The same rule publish_draft applies: list exactly what can be published,
+                # so the recipient count shown is that draft's real audience.
+                Announcement.team_id == team_id,
                 Announcement.status == "draft",
             )
             .order_by(Announcement.created_at.desc(), Announcement.announcement_id.desc())
+            .limit(DRAFTS_LIMIT)
         ).all()
         team_size = _team_size(session, me, team_id)
     return DraftList(drafts=[DraftItem(**row._mapping) for row in rows], team_size=team_size)
@@ -562,6 +569,8 @@ def publish_draft(db: Database, me: Identity, draft_id: int) -> Published:
     if me.audience != "platform":
         raise Forbidden("Announcements can only be published in the training platform.")
     require_scope(me, "announcements:publish")
+    if not 0 < draft_id <= BIGINT_MAX:
+        raise NotFound(f"No draft with ID {draft_id}.")  # the same answer as any unknown ID
     with db.tenant_session(me.tenant_id, read_only=False) as session:
         team_id = _manager_context(session, me)
         # One conditional UPDATE is the referee: of two simultaneous publishes, exactly one

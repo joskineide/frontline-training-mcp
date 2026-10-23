@@ -2,7 +2,7 @@
 
 A production-shaped, multi-tenant [Model Context Protocol](https://modelcontextprotocol.io) server for a fictional frontline-workforce training platform: OAuth 2.1, tenant isolation down to Postgres row-level security, deployed on Cloud Run, with tests, traces and an eval scorecard.
 
-> **Status: early development.** Five read tools over a real Postgres, with no login yet: a dev-only stand-in identity (`DEV_USER`) plays the caller. Every company, person and module in this repo is fictional.
+> **Status: early development.** Eight MCP tools (five read, three write) over a real Postgres, plus a development-only platform stand-in. There is no login yet: dev-only stand-ins play the caller (`DEV_USER` for MCP, a header for the stand-in). Every company, person and module in this repo is fictional.
 
 Built against MCP spec revision **2026-07-28** with the official Python SDK (`mcp` 2.x).
 
@@ -25,6 +25,16 @@ Migrations are numbered plain-SQL files in `migrations/`. Each is applied once a
 uv run --env-file .env frontline-training-mcp   # http://127.0.0.1:8080/mcp, acting as DEV_USER
 npx @modelcontextprotocol/inspector             # connect with transport "Streamable HTTP"
 ```
+
+## Platform stand-in (development only)
+
+A small web page that shows what each user sees, and is where a person publishes the drafts an assistant prepared: the AI can only draft (see `docs/design.md`, D12 and D14). **Its UI is AI-generated and labeled as such**; its security layer is the same service code the MCP tools use.
+
+```bash
+uv run --env-file .env ftm-standin   # http://127.0.0.1:8081 (STANDIN_PORT to change)
+```
+
+Pick a user under "View as". It only runs with `APP_ENV=dev`, binds to 127.0.0.1, and will switch to real login, with tokens issued for the platform, never MCP tokens.
 
 ## Test
 
