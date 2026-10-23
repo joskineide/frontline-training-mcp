@@ -1,0 +1,5 @@
+{"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+ "params": {"name": "get_module", "arguments": {"module_id": "forklift-safety"},
+  "_meta": {"io.modelcontextprotocol/protocolVersion": "2026-07-28",
+            "io.modelcontextprotocol/clientCapabilities": {},
+            "io.modelcontextprotocol/clientInfo": {"name": "curl", "version": "1.0"}}}}

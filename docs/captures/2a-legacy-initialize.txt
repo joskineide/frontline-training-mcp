@@ -1,0 +1,13 @@
+HTTP/1.1 200 OK
+date: Fri, 23 Oct 2026 04:38:38 GMT
+server: uvicorn
+cache-control: no-cache, no-transform
+connection: keep-alive
+content-type: text/event-stream
+mcp-session-id: b4e6cd4b4c1f4085a088cf346f006f77
+x-accel-buffering: no
+Transfer-Encoding: chunked
+
+event: message
+data: {"jsonrpc":"2.0","id":1,"result":{"capabilities":{"prompts":{"listChanged":false},"resources":{"listChanged":false,"subscribe":false},"tools":{"listChanged":false}},"instructions":"Look up training modules for frontline workers.","protocolVersion":"2025-11-25","serverInfo":{"name":"frontline-training","version":""}}}
+

@@ -1,0 +1,7 @@
+HTTP/1.1 200 OK
+date: Fri, 23 Oct 2026 04:37:47 GMT
+server: uvicorn
+content-length: 556
+content-type: application/json
+
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"text":"{\n  \"module_id\": \"forklift-safety\",\n  \"title\": \"Forklift Safety\",\n  \"summary\": \"Pre-shift inspection, load limits, and pedestrian zones.\",\n  \"duration_minutes\": 25\n}","type":"text"}],"isError":false,"resultType":"complete","structuredContent":{"module_id":"forklift-safety","title":"Forklift Safety","summary":"Pre-shift inspection, load limits, and pedestrian zones.","duration_minutes":25},"_meta":{"io.modelcontextprotocol/serverInfo":{"name":"frontline-training","version":""}}}}

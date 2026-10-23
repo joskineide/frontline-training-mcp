@@ -1,0 +1,8 @@
+HTTP/1.1 400 Bad Request
+date: Fri, 23 Oct 2026 04:39:28 GMT
+server: uvicorn
+content-type: application/json
+mcp-session-id: 007be08bafd64f9186a276eb1386c21c
+content-length: 95
+
+{"jsonrpc":"2.0","id":null,"error":{"code":-32600,"message":"Bad Request: Missing session ID"}}
