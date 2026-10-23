@@ -19,6 +19,9 @@ notes/
 .env.*
 !.env.example
 
+# Editor settings (machine-specific interpreter path)
+.vscode/
+
 # Tool caches
 .pytest_cache/
 .ruff_cache/
