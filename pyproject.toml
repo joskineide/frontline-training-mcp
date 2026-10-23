@@ -9,10 +9,12 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "mcp>=2.3,<3",
+    "psycopg[binary]>=3.3,<4",
 ]
 
 [project.scripts]
 frontline-training-mcp = "frontline_training_mcp:main"
+ftm-migrate = "frontline_training_mcp.migrate:main"
 
 [build-system]
 requires = ["uv_build>=0.13.5,<0.14.0"]

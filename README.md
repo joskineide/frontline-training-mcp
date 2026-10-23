@@ -14,9 +14,21 @@ uv run frontline-training-mcp          # serves http://127.0.0.1:8080/mcp (overr
 npx @modelcontextprotocol/inspector    # connect with transport "Streamable HTTP"
 ```
 
+## Local database
+
+Postgres 17 runs in Docker on `127.0.0.1:55432`, so it can't clash with a local install on 5432.
+
+```bash
+cp .env.example .env                       # local-only credentials (gitignored): change the password
+docker compose up -d --wait
+uv run --env-file .env ftm-migrate --seed  # schema + fake demo data (dev only)
+```
+
+Migrations are numbered plain-SQL files in `migrations/`. Each is applied once and checksummed, so an applied file must never change: add a new one instead.
+
 ## Test
 
 ```bash
-uv run pytest
+uv run --env-file .env pytest   # database tests run only when DATABASE_URL is set
 uv run ruff check && uv run ruff format --check
 ```
