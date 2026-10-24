@@ -4,7 +4,7 @@ Synchronous on purpose (design decision D15). The MCP SDK runs synchronous tools
 worker thread pool, so a blocking query never stalls the event loop.
 """
 
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
 
@@ -38,7 +38,7 @@ class Database:
         self._sessions = sessionmaker(self.engine, expire_on_commit=False)
 
     @contextmanager
-    def tenant_session(self, tenant_id: str, *, read_only: bool) -> Iterator[Session]:
+    def tenant_session(self, tenant_id: str, *, read_only: bool) -> Generator[Session]:
         """A fresh session inside one transaction scoped to `tenant_id`, committed on success.
 
         `read_only` has no default on purpose: every caller decides explicitly (D7).
