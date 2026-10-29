@@ -1,7 +1,7 @@
 [project]
 name = "frontline-training-mcp"
 version = "0.1.0"
-description = "Production-shaped, multi-tenant MCP server for a fictional frontline-workforce training platform."
+description = "Multi-tenant MCP server for a fictional frontline-workforce training platform."
 readme = "README.md"
 authors = [
     { name = "joskineide", email = "joskineide@hotmail.com" }

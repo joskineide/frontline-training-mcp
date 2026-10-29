@@ -17,5 +17,5 @@ What the comparison shows:
   - So the error names the rule that failed in the mode the server *inferred*, not the root cause.
   - The session ID in capture 3's response is a side effect of that legacy path.
 - **Why legacy streams.** A legacy server may send requests back to the client in the middle of a call. Modern servers don't: a result can be `input_required` instead, which is why `resultType` exists. So a simple modern call is plain JSON.
-- **A session ID is not authentication.** It continues a negotiated session, and anyone presenting it continues that session. Identity comes from the OAuth token on every request.
+- **A session ID is not authentication.** It continues a negotiated session, and anyone presenting it continues that session. Identity will come from the OAuth token on every request (login is on the roadmap).
 - **Why the spec dropped sessions.** Protocol-level state made every server stateful and every load balancer sticky. Application state now travels as explicit handles in tool arguments, and a modern client gets the server's `instructions` from `server/discover` instead of a handshake.
